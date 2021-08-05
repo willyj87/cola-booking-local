@@ -1,0 +1,84 @@
+version: '3.4'
+#Password: noubissie
+services:
+  consensys-front:
+    container_name: consensys-front
+    restart: on-failure
+    build:
+      context: ../consensys-front
+      dockerfile: Dockerfile
+      target: deps
+    volumes:
+      - ../consensys-front:/app
+    command: yarn dev
+    depends_on:
+      - reverse-proxy
+    ports: 
+      - '3003:3000'
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=Host(`consensys.front.local`)"
+      - "traefik.port=3003"
+    networks:
+     - default
+    
+  consensys-back:
+    container_name: consensys-back
+    restart: on-failure
+    build:
+        context: ../consensys-back
+        dockerfile: Dockerfile
+    environment:
+      DATABASE_NAME: consensys
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: root
+      DATABASE_PASSWORD: admin
+    volumes:
+      - ../consensys-back:/home/node/back
+    ports:
+      - '3000:3000'
+    depends_on:
+      - reverse-proxy
+      - postgres-consensys
+    labels:
+    - "traefik.enable=true"
+    - "traefik.http.routers.back.rule=Host(`consensys.back.local`)"
+    - "traefik.port=3000"
+    networks:
+      - default
+
+  postgres-consensys:
+    image: postgres:9.6.2
+    restart: on-failure
+    environment:
+      POSTGRES_DB: consensys
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: admin
+    ports: 
+      - 5432:5432
+    labels:
+      - "traefik.enable=false"
+    networks:
+     - default
+  
+  reverse-proxy:
+    restart: always
+    image: traefik:v2.0
+    ports:
+    - "443:443"
+    - "80:80"
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - ./traefik/traefik.toml:/etc/traefik/traefik.toml
+    labels:
+    - "traefik.http.routers.api.rule=Host(`traefik.home.local`)"
+    - "traefik.http.routers.api.service=api@internal"
+    - "traefik.http.routers.api.entrypoints=http"
+    networks:
+     - default
+networks:
+  default:
+    name: consensys_default
+    driver: bridge
+  

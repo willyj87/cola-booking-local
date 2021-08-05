@@ -1,0 +1,88 @@
+version: '3.4'
+#Password: noubissie
+services:
+  booking-coca-front:
+    container_name: booking-coca-front
+    restart: on-failure
+    build:
+      context: ../booking-coca-front
+      dockerfile: Dockerfile
+      target: deps
+    volumes:
+      - ../booking-coca-front:/app
+    command: yarn dev
+    depends_on:
+      - reverse-proxy
+    ports: 
+      - '3003:3000'
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=Host(`booking-coca.front.local`)"
+      - "traefik.port=3003"
+    networks:
+     - default
+    
+  booking-coca-back:
+    container_name: booking-coca-back
+    restart: on-failure
+    build:
+        context: ../booking-coca-back
+        dockerfile: Dockerfile
+    command: yarn start:dev
+    environment:
+      DATABASE_NAME: booking-coca
+      DATABASE_HOST: mysql-booking-coca
+      DATABASE_PORT: 3306
+      DATABASE_USERNAME: root
+      DATABASE_PASSWORD: admin
+      AUTH0_ISSUER_URL: https://dev-9puz3nzx.eu.auth0.com/
+      AUTH0_AUDIENCE: https://booking-coca-api
+    volumes:
+      - ../booking-coca-back:/home/node/back
+    ports:
+      - '3000:3000'
+    depends_on:
+      - reverse-proxy
+      - mysql-booking-coca
+    labels:
+    - "traefik.enable=true"
+    - "traefik.http.routers.back.rule=Host(`booking-coca.back.local`)"
+    - "traefik.port=3000"
+    networks:
+      - default
+
+  mysql-booking-coca:
+    image: mysql:8.0
+    restart: on-failure
+    environment:
+      MYSQL_DATABASE: booking-coca
+      MYSQL_USER: root
+      MYSQL_PASSWORD: admin
+      MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+    ports: 
+      - 3306:3306
+    labels:
+      - "traefik.enable=false"
+    networks:
+      - default
+
+  reverse-proxy:
+    restart: always
+    image: traefik:v2.0
+    ports:
+    - "443:443"
+    - "80:80"
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - ./traefik/traefik.toml:/etc/traefik/traefik.toml
+    labels:
+    - "traefik.http.routers.api.rule=Host(`traefik.home.local`)"
+    - "traefik.http.routers.api.service=api@internal"
+    - "traefik.http.routers.api.entrypoints=http"
+    networks:
+     - default
+networks:
+  default:
+    name: booking-coca_default
+    driver: bridge
+  

@@ -1,0 +1,15 @@
+[entryPoints]
+  [entryPoints.dashboard]
+  address = ":8080"
+  [entryPoints.http]
+  address = ":80"
+  [entryPoints.https]
+  address = ":443"
+
+[api]
+
+[docker]
+domain = "local"
+watch = true
+[providers.docker]
+  endpoint = "unix:///var/run/docker.sock"
